@@ -727,7 +727,7 @@ fn source_latency_table<'a>(
         .header(Row::new(header).style(Style::default().fg(Color::Cyan)))
         .block(
             Block::default().borders(Borders::ALL).title(
-                "Sources: latency ms \u{00b7} since last update (Binance sends no timestamp)",
+                "Sources: latency ms \u{00b7} since last update (Binance and KuCoin report no send timestamp)",
             ),
         )
 }

@@ -700,7 +700,6 @@ fn parse_external(venue: Venue, payload: &[u8]) -> Option<(&str, f64, f64, Optio
                 bid: &'a str,
                 #[serde(borrow, rename = "bestAsk")]
                 ask: &'a str,
-                time: Option<i64>,
             }
             let message: Message<'_> = serde_json::from_slice(payload).ok()?;
             let symbol = message
@@ -708,11 +707,17 @@ fn parse_external(venue: Venue, payload: &[u8]) -> Option<(&str, f64, f64, Optio
                 .strip_prefix("/market/ticker:")?
                 .split(',')
                 .next()?;
+            // This channel pushes on best bid/ask changes, but its `time` field
+            // only advances on trades — so `received − time` measures trade
+            // recency, not transport delay, and balloons to seconds in quiet
+            // periods. Report no timestamp (like Binance) rather than a
+            // misleading latency; the "since last update" column still shows the
+            // feed is live.
             Some((
                 symbol,
                 parse_price(message.data.bid)?,
                 parse_price(message.data.ask)?,
-                message.data.time,
+                None,
             ))
         }
         Venue::Gate => {
@@ -861,10 +866,12 @@ mod tests {
 
     #[test]
     fn parses_current_kucoin_bbo() {
+        // KuCoin's `time` is the last-trade time, not a send time, so we ignore
+        // it and report no latency (see parse_external).
         let input = br#"{"topic":"/market/ticker:BTC-USDT","type":"message","subject":"trade.ticker","data":{"bestAsk":"101.0","bestAskSize":"1","bestBid":"100.0","bestBidSize":"1","price":"100.5","time":1700000000000}}"#;
         assert_eq!(
             parse_external(Venue::Kucoin, input),
-            Some(("BTC-USDT", 100.0, 101.0, Some(1_700_000_000_000)))
+            Some(("BTC-USDT", 100.0, 101.0, None))
         );
     }
 

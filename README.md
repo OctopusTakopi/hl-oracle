@@ -110,7 +110,7 @@ Warm-up is timed, not counted. The oracle publishes every ~3 seconds but usually
 
 `L-HL gap` is the difference between the most recent local quote and the most recent official update, by local receipt time. It is useful for watching feed timing, not for measuring validator-side publication latency.
 
-Below the table, the sources panel shows two numbers per venue and coin: network latency (local receipt time minus the exchange's send timestamp) and the time since the last update from that venue. Binance's bookTicker carries no timestamp, so its latency shows `-` while its age still updates. The latency reading only means anything on an NTP-synced host.
+Below the table, the sources panel shows two numbers per venue and coin: network latency (local receipt time minus the exchange's send timestamp) and the time since the last update from that venue. Binance's bookTicker and KuCoin's ticker carry no usable send timestamp, so their latency shows `-` while their age still updates. The latency reading only means anything on an NTP-synced host.
 
 Select a coin with the arrow keys and press `Enter` for a chart of the local oracle against the Hyperliquid oracle over the last five minutes. Both are drawn as step lines, since the oracle moves in discrete three-second steps and the books hold their last price between updates.
 
@@ -120,7 +120,7 @@ Select a coin with the arrow keys and press `Enter` for a chart of the local ora
 - One process handles at most 30 external coins, matching MEXC's per-connection subscription limit. Larger configurations are rejected at startup.
 - Feeds reconnect with capped exponential backoff.
 - KuCoin hands out a short-lived token from its `bullet-public` endpoint, fetched before each connection.
-- KuCoin's ticker timestamp is the last-trade time rather than a send time, so its latency reading reflects trade recency, not transport delay. The "since last update" column shows the feed is still live.
+- KuCoin's ticker channel pushes on best bid/ask changes, but its `time` field only advances on trades — so `received − time` measures trade recency, not transport delay, and inflates to seconds in quiet periods. The monitor therefore reports no latency for KuCoin (shown as `-`, like Binance); the "since last update" column still shows the feed is live.
 - MEXC uses its protobuf book-ticker feed; the other venues use public JSON.
 
 ## Scope
