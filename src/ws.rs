@@ -19,9 +19,7 @@ async fn tls_stream(
     url: &Url,
     tls: Arc<ClientConfig>,
 ) -> Result<tokio_rustls::client::TlsStream<TcpStream>> {
-    let host = url
-        .host_str()
-        .ok_or_else(|| anyhow!("URL has no host"))?;
+    let host = url.host_str().ok_or_else(|| anyhow!("URL has no host"))?;
     let port = url
         .port_or_known_default()
         .ok_or_else(|| anyhow!("URL has no port"))?;
@@ -40,21 +38,16 @@ async fn tls_stream(
 
 /// One-shot HTTPS request that returns the full response body. Used for the
 /// KuCoin bullet-public token handshake before opening its WebSocket.
-pub async fn https_request(
-    method: Method,
-    url: &str,
-    tls: Arc<ClientConfig>,
-) -> Result<Bytes> {
+pub async fn https_request(method: Method, url: &str, tls: Arc<ClientConfig>) -> Result<Bytes> {
     let url = Url::parse(url).context("invalid HTTPS URL")?;
     let host = url
         .host_str()
         .ok_or_else(|| anyhow!("URL has no host"))?
         .to_owned();
     let stream = tls_stream(&url, tls).await?;
-    let (mut sender, connection) =
-        hyper::client::conn::http1::handshake(TokioIo::new(stream))
-            .await
-            .context("HTTP handshake failed")?;
+    let (mut sender, connection) = hyper::client::conn::http1::handshake(TokioIo::new(stream))
+        .await
+        .context("HTTP handshake failed")?;
     tokio::spawn(async move {
         let _ = connection.await;
     });

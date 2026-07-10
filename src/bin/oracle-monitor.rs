@@ -167,7 +167,9 @@ impl AssetMetrics {
     fn lead_label(&self) -> String {
         match self.lead_lag.status {
             LeadStatus::Insufficient => {
-                format!("warming up ({}/60)", self.lead_lag.samples.min(60))
+                let target = LeadLagConfig::MINIMUM_HISTORY.as_secs();
+                let elapsed = self.lead_lag.coverage.as_secs().min(target);
+                format!("warming up ({elapsed}s/{target}s)")
             }
             LeadStatus::Weak => "inconclusive".to_owned(),
             LeadStatus::Candidate if self.lead_streak >= 3 => format!(
@@ -260,7 +262,18 @@ async fn monitor(
     let mut selected = 0usize;
     let mut view = View::Table;
 
-    terminal.draw(|frame| draw(frame, assets, &latest, &metrics, max_quote_age, stats.dropped_updates(), selected, view))?;
+    terminal.draw(|frame| {
+        draw(
+            frame,
+            assets,
+            &latest,
+            &metrics,
+            max_quote_age,
+            stats.dropped_updates(),
+            selected,
+            view,
+        )
+    })?;
     loop {
         tokio::select! {
             _ = tokio::signal::ctrl_c() => return Ok(()),
@@ -507,7 +520,10 @@ fn draw(
             ),
         layout[1],
     );
-    frame.render_widget(source_latency_table(assets, metrics, max_quote_age), layout[2]);
+    frame.render_widget(
+        source_latency_table(assets, metrics, max_quote_age),
+        layout[2],
+    );
     let footer = if wide {
         format!(
             "\u{2191}/\u{2193} select \u{00b7} Enter opens the price chart \u{00b7} L-HL gap = latest local minus latest HL update time (negative = local first). Queue drops: {dropped_updates}. q exits."
@@ -610,7 +626,9 @@ fn draw_chart(
         lo = lo.min(*price);
         hi = hi.max(*price);
     }
-    let pad = ((hi - lo) * 0.1).max(hi.abs() * 1e-5).max(f64::MIN_POSITIVE);
+    let pad = ((hi - lo) * 0.1)
+        .max(hi.abs() * 1e-5)
+        .max(f64::MIN_POSITIVE);
     let (ylo, yhi) = (lo - pad, hi + pad);
     let x_min = local_raw
         .iter()
@@ -658,11 +676,10 @@ fn draw_chart(
         .bounds([ylo, yhi])
         .labels([price(ylo), price((ylo + yhi) / 2.0), price(yhi)]);
     let chart = Chart::new(datasets)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!("{} \u{2014} local (cyan) vs HL oracle (yellow)", asset.coin)),
-        )
+        .block(Block::default().borders(Borders::ALL).title(format!(
+            "{} \u{2014} local (cyan) vs HL oracle (yellow)",
+            asset.coin
+        )))
         .x_axis(x_axis)
         .y_axis(y_axis)
         .legend_position(Some(LegendPosition::TopRight));
@@ -709,9 +726,9 @@ fn source_latency_table<'a>(
     Table::new(rows, widths)
         .header(Row::new(header).style(Style::default().fg(Color::Cyan)))
         .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Sources: latency ms \u{00b7} since last update (Binance sends no timestamp)"),
+            Block::default().borders(Borders::ALL).title(
+                "Sources: latency ms \u{00b7} since last update (Binance sends no timestamp)",
+            ),
         )
 }
 

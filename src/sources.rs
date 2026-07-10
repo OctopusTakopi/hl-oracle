@@ -598,7 +598,12 @@ fn parse_external(venue: Venue, payload: &[u8]) -> Option<(&str, f64, f64, Optio
             }
             let message: Message<'_> = serde_json::from_slice(payload).ok()?;
             // Binance bookTicker carries no server timestamp.
-            Some((message.s, parse_price(message.b)?, parse_price(message.a)?, None))
+            Some((
+                message.s,
+                parse_price(message.b)?,
+                parse_price(message.a)?,
+                None,
+            ))
         }
         Venue::Okx => {
             #[derive(Deserialize)]
